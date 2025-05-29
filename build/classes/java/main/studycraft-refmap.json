@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "bogget/studycraft/mixin/HungerMixin": {
+      "update": "Lnet/minecraft/class_1702;method_7588(Lnet/minecraft/class_1657;)V"
+    },
+    "bogget/studycraft/mixin/TextFieldWidgetAccessor": {
+      "editable": "field_2094:Z",
+      "textRenderer": "field_2105:Lnet/minecraft/class_327;"
+    }
+  },
+  "data": {
+    "named:intermediary": {
+      "bogget/studycraft/mixin/HungerMixin": {
+        "update": "Lnet/minecraft/class_1702;method_7588(Lnet/minecraft/class_1657;)V"
+      },
+      "bogget/studycraft/mixin/TextFieldWidgetAccessor": {
+        "editable": "field_2094:Z",
+        "textRenderer": "field_2105:Lnet/minecraft/class_327;"
+      }
+    }
+  }
+}

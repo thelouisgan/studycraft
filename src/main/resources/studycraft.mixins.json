@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "bogget.studycraft.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "HungerMixin",
+    "TextFieldWidgetAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -392,37 +392,31 @@ public class StudycraftConfigScreen extends Screen {
     }
     
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
-        // Only handle scrolling when in stats view
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (showingStats && statsLoaded && !statsList.isEmpty()) {
             if (verticalAmount > 0) {
-                // Scroll up (negative direction in list)
                 scrollUp();
-                return true;
             } else if (verticalAmount < 0) {
-                // Scroll down (positive direction in list)
                 scrollDown();
-                return true;
             }
+            return true;
         }
-        
-        // If not in stats view or no scrolling needed, pass to parent
-        return super.mouseScrolled(mouseX, mouseY, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
     
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context);
+        renderBackground(context, mouseX, mouseY, delta);  // blur background
         
-        // Draw the title at top left
+        super.render(context, mouseX, mouseY, delta);  // draw buttons/widgets BEFORE text
+        
+        // Draw text ON TOP of everything
         context.drawTextWithShadow(textRenderer, this.title, 20, 15, 0xFFFFFF);
         
-        // Draw attribution text below the title with hover effect
         boolean isHovering = isPointOverAttribution(mouseX, mouseY);
-        int textColor = isHovering ? 0xAAAAAA : 0x888888; // Lighter when hovering
+        int textColor = isHovering ? 0xAAAAAA : 0x888888;
         context.drawTextWithShadow(textRenderer, attributionText, attributionX, attributionY, textColor);
         
-        // Show tooltip when hovering over attribution
         if (isHovering) {
             List<Text> tooltipLines = List.of(
                 Text.literal("Made by Louis Gan"),
@@ -436,13 +430,10 @@ public class StudycraftConfigScreen extends Screen {
         if (showingStats) {
             renderStatsView(context);
         } else {
-            // Draw helper text for question bank editor
-            context.drawTextWithShadow(textRenderer, 
+            context.drawTextWithShadow(textRenderer,
                 Text.literal("Paste exported Quizlet set (tab-separated) here:"),
                 20, 70, 0xAAAAAA);
         }
-        
-        super.render(context, mouseX, mouseY, delta);
     }
     
     private void renderStatsView(DrawContext context) {
@@ -539,7 +530,7 @@ public class StudycraftConfigScreen extends Screen {
     
     @Override
     public boolean shouldPause() {
-        return true;
+        return false;
     }
     
     // Method to be called when stats data is received

@@ -26,8 +26,13 @@ public class QuizStatistics {
     public static class StatsEntry {
         private int timesCorrect = 0;
         private int timesWrong = 0;
-        
+
         public StatsEntry() {}
+        
+        public StatsEntry(int timesCorrect, int timesWrong) {
+            this.timesCorrect = timesCorrect;
+            this.timesWrong = timesWrong;
+        }
         
         public void incrementCorrect() {
             timesCorrect++;
@@ -56,7 +61,7 @@ public class QuizStatistics {
     }
     
     public QuizStatistics(MinecraftServer server) {
-        File worldDir = new File(server.getRunDirectory(), "world");
+        File worldDir = new File(server.getRunDirectory().toFile(), "world");
         File dataDir = new File(worldDir, "data");
         if (!dataDir.exists()) {
             dataDir.mkdirs();

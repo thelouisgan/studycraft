@@ -1,327 +1,260 @@
 package bogget.studycraft;
 
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.util.Identifier;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
+import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.util.Identifier;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class StudycraftNetworking {
-    // Define packet identifiers
-    public static final Identifier OPEN_QUIZ_PACKET = new Identifier(Studycraft.MOD_ID, "open_quiz");
-    public static final Identifier SUBMIT_ANSWER_PACKET = new Identifier(Studycraft.MOD_ID, "submit_answer");
-    public static final Identifier UPDATE_QUESTION_BANK_PACKET = new Identifier(Studycraft.MOD_ID, "update_question_bank");
-    public static final Identifier REQUEST_STATS_PACKET = new Identifier(Studycraft.MOD_ID, "request_stats");
-    public static final Identifier STATS_DATA_PACKET = new Identifier(Studycraft.MOD_ID, "stats_data");
-    public static final Identifier GIVE_ITEM_PACKET = new Identifier(Studycraft.MOD_ID, "give_item");
-    public static final Identifier DIFFICULTY_UPDATE_PACKET = new Identifier(Studycraft.MOD_ID, "difficulty_update");
-    
-    // Register all networking handlers
-    public static void registerHandlers() {
-        // Register server-side handlers
-        ServerPlayNetworking.registerGlobalReceiver(SUBMIT_ANSWER_PACKET, StudycraftNetworking::handleSubmitAnswerPacket);
-        ServerPlayNetworking.registerGlobalReceiver(UPDATE_QUESTION_BANK_PACKET, StudycraftNetworking::handleUpdateQuestionBankPacket);
-        ServerPlayNetworking.registerGlobalReceiver(REQUEST_STATS_PACKET, StudycraftNetworking::handleRequestStatsPacket);
-        ServerPlayNetworking.registerGlobalReceiver(GIVE_ITEM_PACKET, StudycraftNetworking::handleGiveItemPacket);
-        ServerPlayNetworking.registerGlobalReceiver(DIFFICULTY_UPDATE_PACKET, StudycraftNetworking::handleDifficultyUpdatePacket);
-    }
-    
-    // Client-side init method that should be called from StudycraftClient
-    public static void registerClientHandlers() {
-        // Register client-side handlers
-        ClientPlayNetworking.registerGlobalReceiver(OPEN_QUIZ_PACKET, StudycraftNetworking::handleOpenQuizPacket);
-        ClientPlayNetworking.registerGlobalReceiver(STATS_DATA_PACKET, StudycraftNetworking::handleStatsDataPacket);
-    }
-    
-    // Method to send packet to open quiz on client
-    public static void sendOpenQuizPacket(ServerPlayerEntity player) {
-        // Get a random question from the question bank
-        QuestionBank.QuizData quizData = Studycraft.getQuestionBank().getRandomQuestion();
-        
-        PacketByteBuf buf = PacketByteBufs.create();
-        
-        // Write the question data to the packet
-        buf.writeString(quizData.getQuestion());
-        buf.writeString(quizData.getCorrectAnswer());
-        buf.writeInt(quizData.getCorrectIndex());
-        
-        // Write all answers
-        List<String> answers = quizData.getAllAnswers();
-        buf.writeInt(answers.size());
-        for (String answer : answers) {
-            buf.writeString(answer);
-        }
-        
-        ServerPlayNetworking.send(player, OPEN_QUIZ_PACKET, buf);
-    }
-    
-    // Client-side handler for opening quiz screen
-    private static void handleOpenQuizPacket(MinecraftClient client, 
-                                        ClientPlayNetworkHandler handler,
-                                        PacketByteBuf buf, 
-                                        PacketSender responseSender) {
-        // Read the question data from the packet
-        String question = buf.readString();
-        String correctAnswer = buf.readString();
-        int correctIndex = buf.readInt();
-        
-        // Read all answers
-        int answerCount = buf.readInt();
-        List<String> answers = new ArrayList<>();
-        for (int i = 0; i < answerCount; i++) {
-            answers.add(buf.readString());
-        }
-        
-        // Create the quiz data
-        QuestionBank.QuizData quizData = new QuestionBank.QuizData(question, correctAnswer, answers, correctIndex);
-        
-        // Execute on the main client thread
-        client.execute(() -> {
-            // Open the quiz screen with the question data
-            client.setScreen(new QuizScreen(quizData));
-        });
-    }
-    
-    // Server-side handler for answer submission
-    private static void handleSubmitAnswerPacket(MinecraftServer server,
-                                               ServerPlayerEntity player,
-                                               ServerPlayNetworkHandler handler,
-                                               PacketByteBuf buf,
-                                               PacketSender responseSender) {
-        // Read answer result from packet (0 for correct, 1 for wrong)
-        int answerResult = buf.readInt();
-        // Read the question and correct answer
-        String question = buf.readString();
-        String correctAnswer = buf.readString();
-        
-        // Process on the server thread
-        server.execute(() -> {
-            boolean isCorrect = (answerResult == 0);
-            
-            // Update statistics
-            Studycraft.getQuizStatistics().recordAnswer(player.getUuid(), question, isCorrect);
-            
-            if (isCorrect) {
-                // Play a sound effect for correct answer
-                player.getWorld().playSound(null, player.getX(), player.getY(), player.getZ(), 
-                    SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 
-                    0.5F, 1.0F);
-                
-                // Use the current hunger gain setting from the server instance
-                int hungerGain = Studycraft.getServerHungerGain();
-                float saturationGain = hungerGain * 0.25F; // Saturation is typically 25% of hunger
-                
-                // No message display for correct answers
-                player.getHungerManager().add(hungerGain, saturationGain);
-            } else {
-                // Format the question and answer for the message
-                String formattedQuestion = question.length() > 30 ? 
-                    question.substring(0, 30) + "..." : question;
-                
-                // Send chat messages for wrong answers
-                player.sendMessage(Text.literal("§c[StudyCraft]§r Wrong answer! Taking damage."), false);
-                player.sendMessage(Text.literal("§6Question: §r" + formattedQuestion), false);
-                player.sendMessage(Text.literal("§6Correct answer: §r" + correctAnswer), false);
-                
-                player.damage(player.getDamageSources().generic(), 2.0F); // 1 heart of damage
-            }
-        });
-    }
-    
 
-    
-    // Client method to send answer back to server
-    public static void sendAnswerPacket(int answerResult, String question, String correctAnswer) {
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeInt(answerResult);
-        buf.writeString(question);
-        buf.writeString(correctAnswer);
-        ClientPlayNetworking.send(SUBMIT_ANSWER_PACKET, buf);
+    // --- Payload Records ---
+
+    public record OpenQuizPayload(String question, String answer1, String answer2, String answer3, String answer4, int correctIndex) implements CustomPayload {
+        public static final Id<OpenQuizPayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "open_quiz"));
+        public static final PacketCodec<PacketByteBuf, OpenQuizPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.STRING, OpenQuizPayload::question,
+            PacketCodecs.STRING, OpenQuizPayload::answer1,
+            PacketCodecs.STRING, OpenQuizPayload::answer2,
+            PacketCodecs.STRING, OpenQuizPayload::answer3,
+            PacketCodecs.STRING, OpenQuizPayload::answer4,
+            PacketCodecs.VAR_INT, OpenQuizPayload::correctIndex,
+            OpenQuizPayload::new
+        );
+        @Override public Id<OpenQuizPayload> getId() { return ID; }
     }
-    
-    // Client method to send updated question bank to server
-    public static void sendUpdateQuestionBankPacket(String newContent) {
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeString(newContent);
-        ClientPlayNetworking.send(UPDATE_QUESTION_BANK_PACKET, buf);
+
+    public record SubmitAnswerPayload(int result, String question, String correctAnswer) implements CustomPayload {
+        public static final Id<SubmitAnswerPayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "submit_answer"));
+        public static final PacketCodec<PacketByteBuf, SubmitAnswerPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.VAR_INT, SubmitAnswerPayload::result,
+            PacketCodecs.STRING, SubmitAnswerPayload::question,
+            PacketCodecs.STRING, SubmitAnswerPayload::correctAnswer,
+            SubmitAnswerPayload::new
+        );
+        @Override public Id<SubmitAnswerPayload> getId() { return ID; }
     }
-    
-    // Server handler for updating question bank
-    private static void handleUpdateQuestionBankPacket(MinecraftServer server,
-                                                      ServerPlayerEntity player,
-                                                      ServerPlayNetworkHandler handler,
-                                                      PacketByteBuf buf,
-                                                      PacketSender responseSender) {
-        // Read the new content
-        String newContent = buf.readString();
-        
-        // Process on the server thread
-        server.execute(() -> {
-            // Update the question bank
-            Studycraft.updateQuestionBank(newContent);
-            // Send temporary actionbar message instead of chat message
-            player.sendMessage(Text.literal("§a[StudyCraft]§r Question bank updated!"), true);
+
+    public record UpdateQuestionBankPayload(String content) implements CustomPayload {
+        public static final Id<UpdateQuestionBankPayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "update_question_bank"));
+        public static final PacketCodec<PacketByteBuf, UpdateQuestionBankPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.STRING, UpdateQuestionBankPayload::content,
+            UpdateQuestionBankPayload::new
+        );
+        @Override public Id<UpdateQuestionBankPayload> getId() { return ID; }
+    }
+
+    public record RequestStatsPayload() implements CustomPayload {
+        public static final Id<RequestStatsPayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "request_stats"));
+        public static final PacketCodec<PacketByteBuf, RequestStatsPayload> CODEC = PacketCodec.unit(new RequestStatsPayload());
+        @Override public Id<RequestStatsPayload> getId() { return ID; }
+    }
+
+    public record GiveItemPayload() implements CustomPayload {
+        public static final Id<GiveItemPayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "give_item"));
+        public static final PacketCodec<PacketByteBuf, GiveItemPayload> CODEC = PacketCodec.unit(new GiveItemPayload());
+        @Override public Id<GiveItemPayload> getId() { return ID; }
+    }
+
+    public record DifficultyUpdatePayload(int hungerInterval, int hungerGain) implements CustomPayload {
+        public static final Id<DifficultyUpdatePayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "difficulty_update"));
+        public static final PacketCodec<PacketByteBuf, DifficultyUpdatePayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.VAR_INT, DifficultyUpdatePayload::hungerInterval,
+            PacketCodecs.VAR_INT, DifficultyUpdatePayload::hungerGain,
+            DifficultyUpdatePayload::new
+        );
+        @Override public Id<DifficultyUpdatePayload> getId() { return ID; }
+    }
+
+    public record StatsDataPayload(String statsJson, float overallPercent) implements CustomPayload {
+        public static final Id<StatsDataPayload> ID = new Id<>(Identifier.of(Studycraft.MOD_ID, "stats_data"));
+        public static final PacketCodec<PacketByteBuf, StatsDataPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.STRING, StatsDataPayload::statsJson,
+            PacketCodecs.FLOAT, StatsDataPayload::overallPercent,
+            StatsDataPayload::new
+        );
+        @Override public Id<StatsDataPayload> getId() { return ID; }
+    }
+
+    // --- Registration ---
+
+    public static void registerPayloads() {
+        // Server-bound (client → server)
+        PayloadTypeRegistry.playC2S().register(SubmitAnswerPayload.ID, SubmitAnswerPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(UpdateQuestionBankPayload.ID, UpdateQuestionBankPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RequestStatsPayload.ID, RequestStatsPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(GiveItemPayload.ID, GiveItemPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(DifficultyUpdatePayload.ID, DifficultyUpdatePayload.CODEC);
+
+        // Client-bound (server → client)
+        PayloadTypeRegistry.playS2C().register(OpenQuizPayload.ID, OpenQuizPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(StatsDataPayload.ID, StatsDataPayload.CODEC);
+    }
+
+    public static void registerHandlers() {
+        ServerPlayNetworking.registerGlobalReceiver(SubmitAnswerPayload.ID, (payload, context) -> {
+            context.server().execute(() -> handleSubmitAnswer(payload, context.player()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(UpdateQuestionBankPayload.ID, (payload, context) -> {
+            context.server().execute(() -> Studycraft.updateQuestionBank(payload.content()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(RequestStatsPayload.ID, (payload, context) -> {
+            context.server().execute(() -> handleRequestStats(context.player()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(GiveItemPayload.ID, (payload, context) -> {
+            context.server().execute(() -> handleGiveItem(context.player()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(DifficultyUpdatePayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                Studycraft.setServerHungerInterval(payload.hungerInterval());
+                Studycraft.setServerHungerGain(payload.hungerGain());
+            });
         });
     }
-    
-    // Client method to request stats from server
+
+    public static void registerClientHandlers() {
+        ClientPlayNetworking.registerGlobalReceiver(OpenQuizPayload.ID, (payload, context) -> {
+            context.client().execute(() -> {
+                QuestionBank.QuizData quizData = new QuestionBank.QuizData(
+                    payload.question(),
+                    payload.answer1(),
+                    java.util.List.of(payload.answer1(), payload.answer2(), payload.answer3(), payload.answer4()),
+                    payload.correctIndex()
+                );
+                MinecraftClient.getInstance().setScreen(new QuizScreen(quizData));
+            });
+        });
+        ClientPlayNetworking.registerGlobalReceiver(StatsDataPayload.ID, (payload, context) -> {
+            context.client().execute(() -> handleStatsData(payload));
+        });
+    }
+
+    // --- Server-side packet sending ---
+
+    public static void sendOpenQuizPacket(ServerPlayerEntity player) {
+        QuestionBank.QuizData quizData = Studycraft.getQuestionBank().getRandomQuestion();
+        if (quizData == null) return;
+        java.util.List<String> answers = quizData.getAllAnswers();
+        ServerPlayNetworking.send(player, new OpenQuizPayload(
+            quizData.getQuestion(),
+            answers.get(0), answers.get(1), answers.get(2), answers.get(3),
+            quizData.getCorrectIndex()
+        ));
+    }
+
+    // --- Client-side packet sending ---
+
+    public static void sendAnswerPacket(int result, String question, String correctAnswer) {
+        ClientPlayNetworking.send(new SubmitAnswerPayload(result, question, correctAnswer));
+    }
+
+    public static void sendUpdateQuestionBankPacket(String content) {
+        ClientPlayNetworking.send(new UpdateQuestionBankPayload(content));
+    }
+
     public static void requestStats() {
-        PacketByteBuf buf = PacketByteBufs.create();
-        ClientPlayNetworking.send(REQUEST_STATS_PACKET, buf);
+        ClientPlayNetworking.send(new RequestStatsPayload());
     }
-    
-    // Client method to send difficulty update to server
-    public static void sendDifficultyUpdatePacket(int hungerInterval, int hungerGain) {
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeInt(hungerInterval);
-        buf.writeInt(hungerGain);
-        ClientPlayNetworking.send(DIFFICULTY_UPDATE_PACKET, buf);
-    }
-    
-    // Server handler for difficulty updates
-    private static void handleDifficultyUpdatePacket(MinecraftServer server,
-                                                   ServerPlayerEntity player,
-                                                   ServerPlayNetworkHandler handler,
-                                                   PacketByteBuf buf,
-                                                   PacketSender responseSender) {
-        // Read the new difficulty settings
-        int hungerInterval = buf.readInt();
-        int hungerGain = buf.readInt();
-        
-        // Process on the server thread
-        server.execute(() -> {
-            // Update the difficulty settings on the server
-            Studycraft.setServerHungerInterval(hungerInterval);
-            Studycraft.setServerHungerGain(hungerGain);
-            
-            // --REDUNDANT AS ALREADY LOGGED IN CONFIGSCREEN -- //
-            // Send confirmation to player
-            /*String intervalSeconds = String.format("%.1f", hungerInterval / 20.0);
-            String gainAmount = String.format("%.1f", hungerGain / 2.0);
-            player.sendMessage(Text.literal("§a[StudyCraft]§r Difficulty updated! Hunger interval: " + 
-                intervalSeconds + "s, Reward: +" + gainAmount + " drumsticks"), true);*/
-        });
-    }
-    
-    // Client method to send give item request to server
+
     public static void sendGiveItemPacket() {
-        PacketByteBuf buf = PacketByteBufs.create();
-        ClientPlayNetworking.send(GIVE_ITEM_PACKET, buf);
+        ClientPlayNetworking.send(new GiveItemPayload());
     }
-    
-    // Server handler for give item request
-    private static void handleGiveItemPacket(MinecraftServer server,
-                                           ServerPlayerEntity player,
-                                           ServerPlayNetworkHandler handler,
-                                           PacketByteBuf buf,
-                                           PacketSender responseSender) {
-        server.execute(() -> {
-            // Give the player a Quiz Card item
-            ItemStack quizCard = new ItemStack(Studycraft.QUIZ_ITEM);
-            quizCard.setCustomName(Text.literal("Quiz Card"));
-            
-            // Try to add to inventory
-            if (!player.getInventory().insertStack(quizCard)) {
-                // If inventory is full, drop the item
-                player.dropItem(quizCard, false);
-            }
-            
-            // Send temporary actionbar message instead of chat message
-            player.sendMessage(Text.literal("§a[StudyCraft]§r Quiz Card given!"), true);
-        });
+
+    public static void sendDifficultyUpdatePacket(int hungerInterval, int hungerGain) {
+        ClientPlayNetworking.send(new DifficultyUpdatePayload(hungerInterval, hungerGain));
     }
-    
-    // Server handler for stats request
-    private static void handleRequestStatsPacket(MinecraftServer server,
-                                               ServerPlayerEntity player,
-                                               ServerPlayNetworkHandler handler,
-                                               PacketByteBuf buf,
-                                               PacketSender responseSender) {
-        server.execute(() -> {
-            // Get player statistics
-            QuizStatistics stats = Studycraft.getQuizStatistics();
-            
-            // Get player stats using the correct methods from QuizStatistics
-            Map<String, QuizStatistics.StatsEntry> playerStats = stats.getAllStats(player.getUuid());
-            double overallPercentage = stats.getOverallPercentCorrect(player.getUuid());
-            
-            // Create response packet
-            PacketByteBuf response = PacketByteBufs.create();
-            
-            // Write overall percentage
-            response.writeDouble(overallPercentage);
-            
-            // Write individual question stats
-            response.writeInt(playerStats.size());
-            for (Map.Entry<String, QuizStatistics.StatsEntry> entry : playerStats.entrySet()) {
-                response.writeString(entry.getKey()); // Question text
-                response.writeInt(entry.getValue().getTimesCorrect());
-                response.writeInt(entry.getValue().getTimesWrong());
-                response.writeFloat(entry.getValue().getPercentCorrect());
-            }
-            
-            // Send stats back to client
-            ServerPlayNetworking.send(player, STATS_DATA_PACKET, response);
-        });
-    }
-    
-    // Client handler for stats data - FIXED VERSION
-    private static void handleStatsDataPacket(MinecraftClient client,
-                                            ClientPlayNetworkHandler handler,
-                                            PacketByteBuf buf,
-                                            PacketSender responseSender) {
-        // Read stats data
-        double overallPercentage = buf.readDouble();
-        
-        int statsCount = buf.readInt();
-        Map<String, QuizStatistics.StatsEntry> playerStats = new HashMap<>();
-        
-        for (int i = 0; i < statsCount; i++) {
-            String question = buf.readString();
-            int timesCorrect = buf.readInt();
-            int timesWrong = buf.readInt();
-            float percentCorrect = buf.readFloat();
-            
-            // Create a properly populated StatsEntry
-            QuizStatistics.StatsEntry entry = new QuizStatistics.StatsEntry();
-            
-            // We need to set the values manually since the fields are private
-            // We'll use a loop to simulate the correct/wrong answers being recorded
-            for (int j = 0; j < timesCorrect; j++) {
-                entry.incrementCorrect();
-            }
-            for (int j = 0; j < timesWrong; j++) {
-                entry.incrementWrong();
-            }
-            
-            playerStats.put(question, entry);
+
+    // --- Handlers ---
+
+    private static void handleSubmitAnswer(SubmitAnswerPayload payload, ServerPlayerEntity player) {
+        boolean isCorrect = payload.result() == 0;
+        QuizStatistics stats = Studycraft.getQuizStatistics();
+        if (stats != null) {
+            stats.recordAnswer(player.getUuid(), payload.question(), isCorrect);
         }
-        
-        // Execute on client thread
-        client.execute(() -> {
-            // Update the client statistics with the received data
-            Studycraft.getClientStats().updateStats(playerStats, (float) overallPercentage);
-            
-            // Notify the config screen that stats have been received
-            if (client.currentScreen instanceof StudycraftConfigScreen) {
-                ((StudycraftConfigScreen) client.currentScreen).onStatsReceived();
+        if (isCorrect) {
+            int gain = Studycraft.getServerHungerGain();
+            player.getHungerManager().add(gain, 0.5f);
+            player.sendMessage(Text.literal("§a[StudyCraft]§r Correct! +" + (gain / 2.0) + " drumsticks"), true);
+        } else {
+            player.sendMessage(Text.literal("§c[StudyCraft]§r Wrong! The answer was: " + payload.correctAnswer()), true);
+        }
+    }
+
+    private static void handleRequestStats(ServerPlayerEntity player) {
+        QuizStatistics stats = Studycraft.getQuizStatistics();
+        if (stats == null) return;
+        Map<String, QuizStatistics.StatsEntry> allStats = stats.getAllStats(player.getUuid());
+        float overallPercent = stats.getOverallPercentCorrect(player.getUuid());
+
+        // Serialize stats to JSON string simply
+        StringBuilder json = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, QuizStatistics.StatsEntry> entry : allStats.entrySet()) {
+            if (!first) json.append(",");
+            String escapedKey = entry.getKey().replace("\"", "\\\"");
+            QuizStatistics.StatsEntry s = entry.getValue();
+            json.append("\"").append(escapedKey).append("\":")
+                .append("{\"correct\":").append(s.getTimesCorrect())
+                .append(",\"wrong\":").append(s.getTimesWrong()).append("}");
+            first = false;
+        }
+        json.append("}");
+
+        ServerPlayNetworking.send(player, new StatsDataPayload(json.toString(), overallPercent));
+    }
+
+    private static void handleGiveItem(ServerPlayerEntity player) {
+        ItemStack quizCard = new ItemStack(Studycraft.QUIZ_ITEM);
+        quizCard.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Quiz Card"));
+        player.getInventory().insertStack(quizCard);
+    }
+
+    private static void handleStatsData(StatsDataPayload payload) {
+        // Parse the simple JSON and update client stats
+        // This is a simple parser for our specific format
+        Map<String, QuizStatistics.StatsEntry> statsMap = new java.util.HashMap<>();
+        try {
+            String json = payload.statsJson().trim();
+            if (json.equals("{}")) {
+                Studycraft.getClientStats().updateStats(statsMap, payload.overallPercent());
+                return;
             }
-        });
+            // Remove outer braces
+            json = json.substring(1, json.length() - 1);
+            // Split by "}," to get individual entries
+            String[] entries = json.split("\\},");
+            for (String entry : entries) {
+                entry = entry.trim().replace("}", "");
+                int colonIdx = entry.indexOf("\":{");
+                if (colonIdx < 0) continue;
+                String key = entry.substring(1, colonIdx).replace("\\\"", "\"");
+                String values = entry.substring(colonIdx + 3);
+                int correct = 0, wrong = 0;
+                for (String part : values.split(",")) {
+                    if (part.contains("\"correct\":")) correct = Integer.parseInt(part.split(":")[1].trim());
+                    if (part.contains("\"wrong\":")) wrong = Integer.parseInt(part.split(":")[1].trim());
+                }
+                statsMap.put(key, new QuizStatistics.StatsEntry(correct, wrong));
+            }
+        } catch (Exception e) {
+            Studycraft.LOGGER.error("Failed to parse stats JSON", e);
+        }
+        Studycraft.getClientStats().updateStats(statsMap, payload.overallPercent());
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.currentScreen instanceof StudycraftConfigScreen screen) {
+            screen.onStatsReceived();
+        }
     }
 }

@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "id": "studycraft",
-  "version": "0.1.0",
+  "version": "1.0",
   "name": "Studycraft",
   "description": "A mod that depletes your hunger every 10 seconds",
   "authors": [
-    "YourUsername"
+    "louisbogget"
   ],
   "contact": {
-    "homepage": "https://example.com/",
-    "sources": "https://github.com/yourusername/studycraft"
+    "homepage": "https://ganlouis.com/",
+    "sources": "https://github.com/thelouisgan/studycraft"
   },
   "license": "MIT",
   "icon": "assets/studycraft/icon.png",
@@ -28,7 +28,7 @@
   "depends": {
     "fabricloader": ">=0.14.21",
     "fabric-api": "*",
-    "minecraft": "~1.20.1",
+    "minecraft": ">=1.21",
     "java": ">=17"
   }
 }

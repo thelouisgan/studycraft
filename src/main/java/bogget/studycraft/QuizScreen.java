@@ -74,7 +74,7 @@ public class QuizScreen extends Screen {
     
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context);
+        renderBackground(context, mouseX, mouseY, delta);
         
         // Draw question
         String question = quizData.getQuestion();
@@ -152,7 +152,7 @@ public class QuizScreen extends Screen {
     
     @Override
     public boolean shouldPause() {
-        return true;
+        return false;
     }
     
     /**

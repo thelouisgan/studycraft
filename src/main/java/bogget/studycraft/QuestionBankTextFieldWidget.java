@@ -794,7 +794,7 @@ public class QuestionBankTextFieldWidget extends TextFieldWidget {
     }
     
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         // Draw background
         context.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0xFF000000);
         context.drawBorder(this.getX(), this.getY(), this.width, this.height, 0xFFAAAAAA);
@@ -931,7 +931,6 @@ public class QuestionBankTextFieldWidget extends TextFieldWidget {
         return displayPosition;
     }
     
-    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         // Handle scrolling
         if (amount > 0 && scrollPosition > 0) {
@@ -963,9 +962,8 @@ public class QuestionBankTextFieldWidget extends TextFieldWidget {
         return result;
     }
     
-    @Override
     public void setCursor(int cursor) {
-        super.setCursor(cursor);
+        super.setCursor(cursor, false);
         updateCursorPosition();
     }
     

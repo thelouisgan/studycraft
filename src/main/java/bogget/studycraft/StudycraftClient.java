@@ -20,7 +20,7 @@ public class StudycraftClient implements ClientModInitializer {
             "key.studycraft.config",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_Y, // Default to Y key
-            "category.studycraft.main"
+            "StudyCraft"
         ));
         
         // Register tick event to check for key press

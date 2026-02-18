@@ -1392,5 +1392,99 @@
       "timesCorrect": 1,
       "timesWrong": 0
     }
+  },
+  "19f51a77-b6fb-3469-a8b6-228ec5ce5961": {
+    "Iron (II)": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    },
+    "Sulfate": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    }
+  },
+  "f913bf04-ecdf-3fde-8be0-ad7c513daf5c": {
+    "Copper (II)": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    },
+    "Carbonates": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    }
+  },
+  "2afb4ee9-7113-3f92-8544-46d36df86129": {
+    "Sodium": {
+      "timesCorrect": 1,
+      "timesWrong": 0
+    }
+  },
+  "54b70f4a-db80-304b-b6ee-afcd086c6623": {
+    "Calcium": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    },
+    "Lithium": {
+      "timesCorrect": 0,
+      "timesWrong": 2
+    }
+  },
+  "3c0b2b93-1042-3a3d-b6b2-a97839f06c80": {
+    "Iodide": {
+      "timesCorrect": 1,
+      "timesWrong": 2
+    },
+    "Chloride": {
+      "timesCorrect": 1,
+      "timesWrong": 1
+    },
+    "Sodium": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    },
+    "Lithium": {
+      "timesCorrect": 1,
+      "timesWrong": 1
+    },
+    "Aluminium": {
+      "timesCorrect": 2,
+      "timesWrong": 0
+    },
+    "Carbonates": {
+      "timesCorrect": 1,
+      "timesWrong": 0
+    },
+    "Copper": {
+      "timesCorrect": 2,
+      "timesWrong": 0
+    },
+    "Bromide": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    }
+  },
+  "f109a640-cd93-3f49-a1e7-75407085bbf0": {
+    "Copper (II)": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    },
+    "Sodium": {
+      "timesCorrect": 1,
+      "timesWrong": 0
+    },
+    "Copper": {
+      "timesCorrect": 1,
+      "timesWrong": 0
+    }
+  },
+  "05d2e66a-903f-3232-a8b0-3899ccc17800": {
+    "Copper (II)": {
+      "timesCorrect": 0,
+      "timesWrong": 1
+    },
+    "Carbonates": {
+      "timesCorrect": 1,
+      "timesWrong": 0
+    }
   }
 }

@@ -3,13 +3,14 @@ package bogget.studycraft;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import net.minecraft.text.Text;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.item.FoodComponent;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.FoodComponent;
+import net.minecraft.item.Item;
 
 import org.apache.logging.log4j.core.jmx.Server;
 import org.slf4j.Logger;
@@ -69,12 +70,12 @@ public class Studycraft implements ModInitializer {
     
     // Register our quiz item
     public static final QuizItem QUIZ_ITEM = new QuizItem(
-        new FabricItemSettings()
+        new Item.Settings()
             .maxCount(64)
-            .food(new FoodComponent.Builder()
-                .hunger(1) // Half a drumstick when eaten normally
+            .component(DataComponentTypes.FOOD, new FoodComponent.Builder()
+                .nutrition(1)
                 .saturationModifier(0.1f)
-                .snack() // Can be eaten quickly
+                .snack()
                 .build())
     );
 
@@ -92,8 +93,9 @@ public class Studycraft implements ModInitializer {
         });
 
         // Register our item
-        Registry.register(Registries.ITEM, new Identifier(MOD_ID, "quiz_card"), QUIZ_ITEM);
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "quiz_card"), QUIZ_ITEM);
         
+        StudycraftNetworking.registerPayloads();
         StudycraftNetworking.registerHandlers();
         // Register server start event to send welcome message
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
